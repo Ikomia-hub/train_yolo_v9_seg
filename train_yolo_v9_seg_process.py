@@ -84,6 +84,8 @@ class TrainYoloV9Seg(dnntrain.TrainProcess):
         return 1
 
     def run(self):
+        self.begin_task_run()
+
         # Core function of your process
         param = self.get_param_object()
         dataset_input = self.get_input(0)
