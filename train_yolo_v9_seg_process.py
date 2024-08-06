@@ -76,6 +76,7 @@ class TrainYoloV9Seg(dnntrain.TrainProcess):
         self.stop_training = False
         self.repo = 'ultralytics/assets'
         self.version = 'v8.2.0'
+        self.enable_mlflow(True)
 
     def get_progress_steps(self):
         # Function returning the number of progress steps for this algorithm
@@ -112,8 +113,8 @@ class TrainYoloV9Seg(dnntrain.TrainProcess):
         self.model = YOLO(self.model_weights)
 
         # Add custom MLflow callback to the model
-        self.model.add_callback(
-            'on_fit_epoch_end', custom_callbacks.on_fit_epoch_end)
+        self.model.add_callback('on_pretrain_routine_end', custom_callbacks.on_pretrain_routine_end)
+        self.model.add_callback('on_fit_epoch_end', custom_callbacks.on_fit_epoch_end)
 
         # Create output folder
         experiment_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}"

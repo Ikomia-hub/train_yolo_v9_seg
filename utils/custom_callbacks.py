@@ -16,6 +16,7 @@ except (ImportError, AssertionError):
 import sys
 import torch
 
+os.environ['MLFLOW_TRACKING_URI'] = 'http://127.0.0.1:5000'
 
 def on_train_epoch_end(trainer):
     trainer.stop_training = True
