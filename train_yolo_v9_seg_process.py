@@ -1,15 +1,18 @@
 import copy
+import os
+import yaml
+from datetime import datetime
+
+import torch
+
 from ikomia import core, dataprocess
 from ikomia.core.task import TaskParam
 from ikomia.dnn import dnntrain
+
+from ultralytics import YOLO, download
+
 from train_yolo_v9_seg.utils.ikutils import prepare_dataset
-import os
-import yaml
-from ultralytics import YOLO
-from datetime import datetime
-import torch
 from train_yolo_v9_seg.utils import custom_callbacks
-from ultralytics import download
 
 
 # --------------------
@@ -20,8 +23,7 @@ class TrainYoloV9SegParam(TaskParam):
 
     def __init__(self):
         TaskParam.__init__(self)
-        dataset_folder = os.path.join(os.path.dirname(
-            os.path.realpath(__file__)), "dataset")
+        dataset_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dataset")
         self.cfg["dataset_folder"] = dataset_folder
         self.cfg["model_name"] = "yolov9c-seg"
         self.cfg["epochs"] = 100
@@ -35,8 +37,7 @@ class TrainYoloV9SegParam(TaskParam):
         self.cfg["lr0"] = 0.01
         self.cfg["lrf"] = 0.01
         self.cfg["config_file"] = ""
-        self.cfg["output_folder"] = os.path.dirname(
-            os.path.realpath(__file__)) + "/runs/"
+        self.cfg["output_folder"] = os.path.dirname(os.path.realpath(__file__)) + "/runs/"
 
     def set_values(self, param_map):
         self.cfg["dataset_folder"] = str(param_map["dataset_folder"])
@@ -51,8 +52,7 @@ class TrainYoloV9SegParam(TaskParam):
         self.cfg["lr0"] = float(param_map["lr0"])
         self.cfg["lrf"] = float(param_map["lrf"])
         self.cfg["config_file"] = param_map["config_file"]
-        self.cfg["dataset_split_ratio"] = float(
-            param_map["dataset_split_ratio"])
+        self.cfg["dataset_split_ratio"] = float(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = str(param_map["output_folder"])
 
 
@@ -101,17 +101,17 @@ class TrainYoloV9Seg(dnntrain.TrainProcess):
             # Load the YAML config file
             with open(param.cfg["config_file"], 'r') as file:
                 config_file = yaml.safe_load(file)
-            self.model_weights = config_file["model"]
+                self.model_weights = config_file["model"]
         else:
             # Set path
-            model_folder = os.path.join(os.path.dirname(
-                os.path.realpath(__file__)), "weights")
-            self.model_weights = os.path.join(
-                str(model_folder), f'{param.cfg["model_name"]}.pt')
+            model_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), "weights")
+            self.model_weights = os.path.join(str(model_folder), f'{param.cfg["model_name"]}.pt')
+
             # Download model if not exist
             if not os.path.isfile(self.model_weights):
                 url = f'https://github.com/{self.repo}/releases/download/{self.version}/{param.cfg["model_name"]}.pt'
                 download(url=url, dir=model_folder, unzip=True)
+
         self.model = YOLO(self.model_weights)
 
         # Add custom MLflow callback to the model
@@ -121,8 +121,7 @@ class TrainYoloV9Seg(dnntrain.TrainProcess):
         # Create output folder
         experiment_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         os.makedirs(param.cfg["output_folder"], exist_ok=True)
-        output_folder = os.path.join(
-            param.cfg["output_folder"], experiment_name)
+        output_folder = os.path.join(param.cfg["output_folder"], experiment_name)
         os.makedirs(output_folder, exist_ok=True)
 
         # Train the model
@@ -130,7 +129,6 @@ class TrainYoloV9Seg(dnntrain.TrainProcess):
             # Extract the custom argument-value pairs
             custom_args = {k: v for k, v in config_file.items()}
             self.model.train(**custom_args)
-
         else:
             self.model.train(
                 data=dataset_yaml,
@@ -162,7 +160,6 @@ class TrainYoloV9Seg(dnntrain.TrainProcess):
         self.stop_training = True
 
 
-
 # --------------------
 # - Factory class to build process object
 # - Inherits PyDataProcess.CTaskFactory from Ikomia API
@@ -176,7 +173,8 @@ class TrainYoloV9SegFactory(dataprocess.CTaskFactory):
         self.info.short_description = "Train YOLOv9 instance segmentation models."
         # relative path -> as displayed in Ikomia Studio algorithm tree
         self.info.path = "Plugins/Python/Instance Segmentation"
-        self.info.version = "1.0.0"
+        self.info.version = "1.1.0"
+        self.info.min_ikomia_version = "0.15.0"
         self.info.icon_path = "images/icon.png"
         self.info.authors = "Wang, Chien-Yao  and Liao, Hong-Yuan Mark"
         self.info.article = "YOLOv9: Learning What You Want to Learn Using Programmable Gradient Information"
@@ -192,6 +190,12 @@ class TrainYoloV9SegFactory(dataprocess.CTaskFactory):
         self.info.keywords = "YOLO, instance, segmentation, real-time, Pytorch"
         self.info.algo_type = core.AlgoType.TRAIN
         self.info.algo_tasks = "INSTANCE_SEGMENTATION"
+        # Min hardware config
+        self.info.hardware_config.min_cpu = 4
+        self.info.hardware_config.min_ram = 16
+        self.info.hardware_config.gpu_required = True
+        self.info.hardware_config.min_vram = 16
+
     def create(self, param=None):
         # Create algorithm object
         return TrainYoloV9Seg(self.info.name, param)
